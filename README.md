@@ -8,3 +8,8 @@ To use matplotlib for plotting use the instrustion in this github https://github
 ## Requirements
 - Matplotlibcpp
 - Egen
+## Results
+1. Before apply icp
+   ![Iterative-closest-points-ICP-](Result/before_icp.png)
+2. After apply icp
+   ![Iterative-closest-points-ICP-](Result/after_icp.png)
