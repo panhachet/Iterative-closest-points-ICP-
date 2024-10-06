@@ -51,6 +51,11 @@
         "stop_token": "cpp",
         "thread": "cpp",
         "typeinfo": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "core": "cpp",
+        "bitset": "cpp",
+        "optional": "cpp",
+        "system_error": "cpp",
+        "variant": "cpp"
     }
 }

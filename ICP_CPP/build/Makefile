@@ -111,17 +111,30 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named icp
+# Target rules for targets named icp_test
 
 # Build rule for target.
-icp: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 icp
-.PHONY : icp
+icp_test: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 icp_test
+.PHONY : icp_test
 
 # fast build rule for target.
-icp/fast:
-	$(MAKE) -f CMakeFiles/icp.dir/build.make CMakeFiles/icp.dir/build
-.PHONY : icp/fast
+icp_test/fast:
+	$(MAKE) -f CMakeFiles/icp_test.dir/build.make CMakeFiles/icp_test.dir/build
+.PHONY : icp_test/fast
+
+#=============================================================================
+# Target rules for targets named main
+
+# Build rule for target.
+main: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 main
+.PHONY : main
+
+# fast build rule for target.
+main/fast:
+	$(MAKE) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/build
+.PHONY : main/fast
 
 src/icp.o: src/icp.cpp.o
 
@@ -129,7 +142,7 @@ src/icp.o: src/icp.cpp.o
 
 # target to build an object file
 src/icp.cpp.o:
-	$(MAKE) -f CMakeFiles/icp.dir/build.make CMakeFiles/icp.dir/src/icp.cpp.o
+	$(MAKE) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/icp.cpp.o
 .PHONY : src/icp.cpp.o
 
 src/icp.i: src/icp.cpp.i
@@ -138,7 +151,7 @@ src/icp.i: src/icp.cpp.i
 
 # target to preprocess a source file
 src/icp.cpp.i:
-	$(MAKE) -f CMakeFiles/icp.dir/build.make CMakeFiles/icp.dir/src/icp.cpp.i
+	$(MAKE) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/icp.cpp.i
 .PHONY : src/icp.cpp.i
 
 src/icp.s: src/icp.cpp.s
@@ -147,8 +160,62 @@ src/icp.s: src/icp.cpp.s
 
 # target to generate assembly for a file
 src/icp.cpp.s:
-	$(MAKE) -f CMakeFiles/icp.dir/build.make CMakeFiles/icp.dir/src/icp.cpp.s
+	$(MAKE) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/icp.cpp.s
 .PHONY : src/icp.cpp.s
+
+src/icp_test.o: src/icp_test.cpp.o
+
+.PHONY : src/icp_test.o
+
+# target to build an object file
+src/icp_test.cpp.o:
+	$(MAKE) -f CMakeFiles/icp_test.dir/build.make CMakeFiles/icp_test.dir/src/icp_test.cpp.o
+.PHONY : src/icp_test.cpp.o
+
+src/icp_test.i: src/icp_test.cpp.i
+
+.PHONY : src/icp_test.i
+
+# target to preprocess a source file
+src/icp_test.cpp.i:
+	$(MAKE) -f CMakeFiles/icp_test.dir/build.make CMakeFiles/icp_test.dir/src/icp_test.cpp.i
+.PHONY : src/icp_test.cpp.i
+
+src/icp_test.s: src/icp_test.cpp.s
+
+.PHONY : src/icp_test.s
+
+# target to generate assembly for a file
+src/icp_test.cpp.s:
+	$(MAKE) -f CMakeFiles/icp_test.dir/build.make CMakeFiles/icp_test.dir/src/icp_test.cpp.s
+.PHONY : src/icp_test.cpp.s
+
+src/main.o: src/main.cpp.o
+
+.PHONY : src/main.o
+
+# target to build an object file
+src/main.cpp.o:
+	$(MAKE) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/main.cpp.o
+.PHONY : src/main.cpp.o
+
+src/main.i: src/main.cpp.i
+
+.PHONY : src/main.i
+
+# target to preprocess a source file
+src/main.cpp.i:
+	$(MAKE) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/main.cpp.i
+.PHONY : src/main.cpp.i
+
+src/main.s: src/main.cpp.s
+
+.PHONY : src/main.s
+
+# target to generate assembly for a file
+src/main.cpp.s:
+	$(MAKE) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/main.cpp.s
+.PHONY : src/main.cpp.s
 
 # Help Target
 help:
@@ -158,10 +225,17 @@ help:
 	@echo "... depend"
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
-	@echo "... icp"
+	@echo "... icp_test"
+	@echo "... main"
 	@echo "... src/icp.o"
 	@echo "... src/icp.i"
 	@echo "... src/icp.s"
+	@echo "... src/icp_test.o"
+	@echo "... src/icp_test.i"
+	@echo "... src/icp_test.s"
+	@echo "... src/main.o"
+	@echo "... src/main.i"
+	@echo "... src/main.s"
 .PHONY : help
 
 
