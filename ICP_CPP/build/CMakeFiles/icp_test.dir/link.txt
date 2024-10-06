@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/icp_test.dir/src/icp_test.cpp.o  -o icp_test  /usr/lib/x86_64-linux-gnu/libpython3.8.so 

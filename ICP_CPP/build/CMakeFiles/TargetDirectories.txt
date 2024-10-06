@@ -1,4 +1,0 @@
-/home/robotic/ICP_CPP/build/CMakeFiles/rebuild_cache.dir
-/home/robotic/ICP_CPP/build/CMakeFiles/edit_cache.dir
-/home/robotic/ICP_CPP/build/CMakeFiles/icp_test.dir
-/home/robotic/ICP_CPP/build/CMakeFiles/main.dir

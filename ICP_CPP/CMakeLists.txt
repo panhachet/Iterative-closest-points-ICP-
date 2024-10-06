@@ -36,6 +36,4 @@ include_directories(${PYTHON_INCLUDE_DIRS} include)
 add_executable(main src/main.cpp src/icp.cpp ) 
 target_link_libraries(main ${PYTHON_LIBRARIES})  
 
-add_executable(icp_test src/icp_test.cpp )
-target_link_libraries(icp_test ${PYTHON_LIBRARIES}) 
 
