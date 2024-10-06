@@ -1,3 +1,3 @@
 # Iterative-closest-points-ICP
 
-This is the integration project of my Master degree
+This is the part of Master degree intergration project.
