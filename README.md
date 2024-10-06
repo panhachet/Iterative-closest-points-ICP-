@@ -1,6 +1,6 @@
 # Iterative-closest-points-ICP
 
-This is the part of Master degree intergration project.
+This is the part of Master degree intergration project. The main purpose is to use the iterative closest points (ICP) based on Gauss-Newton method optimization to minimize the difference between two points clouds. It is works by keep one point cloud as the reference or target (fixed), while try to transform the other (other source) in order to match the reference.
 
 ## Dependency
 To use matplotlib for plotting use the instrustion in this github https://github.com/lava/matplotlib-cpp
