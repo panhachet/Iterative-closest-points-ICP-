@@ -133,10 +133,10 @@ tuple<MatrixXd, Vector3d> solver(const vector<double>& x, const vector<vector<do
     {
         int i = index.first;
         int j = index.second;
-        vector<double> p = {P[0][i], P[1][i]};
-        vector<double> q = {Q[0][j], Q[1][j]};
+        vector<double> p = P[i];
+        vector<double> q = Q[j];
         MatrixXd e = error(x, p, q);
-        MatrixXd J =  jacobian(x, p);
+        MatrixXd J = jacobian(x, p);
         H += J.transpose() * J;
         g += J.transpose() * e;
     }
@@ -144,30 +144,38 @@ tuple<MatrixXd, Vector3d> solver(const vector<double>& x, const vector<vector<do
 }
 
 
-tuple<vector<vector<double>> vector<double>> icp(const vector<vector<double>>& P, const vector<vector<double>& Q,vector<double> x_init, int iteration, double tolerance>)
+tuple<vector<vector<double>>, vector<double>> icp(
+    const vector<vector<double>>& P, 
+    const vector<vector<double>>& Q, 
+    vector<double> x_init, 
+    int iteration, 
+    double tolerance)
 {
     vector<double> x = x_init;
     vector<vector<double>> P_prev = P;
     vector<vector<double>> x_new = {x_init};
-    vector<vector<vector<double>>> P_new= {P}
-    vector<double> Dx = {};
+    vector<vector<double>> P_new;
+    vector<double> Dx;
     for (int i =0; i<iteration; i++)
     {
         MatrixXd R = rotation(x[2]);
         Vector2d t(x[0], x[1]);
         vector<pair<int, int>> corr = correspondence(P_prev,Q);
         auto [H, g] = solver(x, P, Q, corr);
-        double dx = - H.inverse() * g;
-        Dx.push_back(dx);
-        x = x + dx;
-        x[2] = atan2(sin(x[2]), cos(x[2]));
+        Vector3d dx = - H.inverse() * g;
+        Dx.push_back(dx.norm());
+        for (int i = 0; i < 3; i++) {
+            x[i] += dx(i);
+        }
+        x[2] = atan2(sin(x[2]), cos(x[2])); 
         x_new.push_back(x);
-        MatrixXd R = rotation(x[2]);
-        Vector2d t(x[0], x[1]);
-        P_prev = R * P + t;
-        P_new.push_back({P_prev});
-
-        if(dx.norm < tolerance)
+        for (size_t i = 0; i < P.size(); i++)
+        {
+            Vector2d rotated_point = R * Vector2d(P[i][0], P[i][1]) + t;
+            P_prev[i] = {rotated_point(0), rotated_point(1)};
+        }
+        P_new = P_prev;
+        if(dx.norm() < tolerance)
         {
             break;
         }
@@ -196,36 +204,20 @@ const vector<double>& qx, const vector<double>& qy)
 int main()
 {
     auto [Qx, Qy, Px, Py] = read_data("/home/robotic/ICP_CPP/src/coordinates.csv");
-    std::cout << "Qx: ";
-    for (double qx : Px) {
-        std::cout << qx << " ";
-    }
     vector<vector<double>> P = Data(Px, Py);
     vector<vector<double>> Q = Data(Qx, Qy);
-    for (const auto & data : P)
+    vector<double> X = {1, 1, 25 * M_PI/180};
+    auto [P_new, Dx] = icp(P,Q,X,30,1E-6);
+    for (const auto & data : P_new)
     {
-        cout << data[0] << "\n" << data[1]  << endl;
+        cout << data[0] << "," << data[1]  << endl;
     }
-    std::cout << std::endl;
-    vector<double> x = {1, 1, 25 * M_PI/180};
-    vector<double> p = {2,3};
-    vector<double> q = {4,1};
-    MatrixXd r = rotation(1.57);
-    cout << r << endl;
-    MatrixXd J = jacobian(x, p);
-    cout << J <<endl;
-    MatrixXd e = error(x,p,q);
-    cout << e <<endl;
-    cout << "===" << endl;
-    vector<pair<int, int>>  corr  = correspondence(P,Q);
-     for (const auto& p : corr) {
-        std::cout << "(" << p.first << ", " << p.second << ") ";
+    vector<double> P_new_x, P_new_y;
+    for (const auto& p : P_new) {
+        P_new_x.push_back(p[0]);
+        P_new_y.push_back(p[1]);
     }
-    std::cout << std::endl;
-    //===============================
-    plot_data(Px, Py, Qx, Qy);
-
-    
+    plot_data(P_new_x, P_new_y, Qx,Qy);
     return 0;
 
 }
