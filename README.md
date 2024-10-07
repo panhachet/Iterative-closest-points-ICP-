@@ -37,3 +37,8 @@ make
 2. After apply icp
    
    ![Iterative-closest-points-ICP-](Result/after_icp.png)
+
+## Reference
+
+- https://github.com/lava/matplotlib-cpp
+- https://github.com/niosus/notebooks/blob/master/icp.ipynb
