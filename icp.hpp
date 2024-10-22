@@ -14,6 +14,7 @@ using namespace std;
 class icp
 {
 public:
+    // Constructor que inicializa los datos P, Q, la estimación inicial, iteraciones y tolerancia
     icp(const vector<vector<double>>& P_data, 
         const vector<vector<double>>& Q_data, 
         vector<double> x_init, 
@@ -21,6 +22,7 @@ public:
         double tolerance)
         : P(P_data), Q(Q_data), X(x_init), iter(iteration), tol(tolerance) {}
 
+    // Función para combinar datos en coordenadas x e y en un solo vector
     vector<vector<double>> combine_data(const vector<double>& data_x, const vector<double>& data_y)
     {
         vector<vector<double>> data;
@@ -31,6 +33,7 @@ public:
         return data;
     }
 
+    // Función para encontrar las correspondencias más cercanas entre P y Q
     vector<pair<int, int>> correspondence(const vector<vector<double>>& P, const vector<vector<double>>& Q)
     {
         int p_size = P.size();
@@ -62,6 +65,7 @@ public:
         return correspondences;
     }
 
+    // Función para crear una matriz de rotación
     MatrixXd rotation(const float& theta) const
     {
         MatrixXd rot(2, 2);
@@ -70,6 +74,7 @@ public:
         return rot;
     }
 
+    // Función para la derivada de la matriz de rotación
     MatrixXd d_rotation(const float& theta) const
     {
         MatrixXd d_rot(2, 2);
@@ -78,6 +83,7 @@ public:
         return d_rot;
     }
 
+    // Jacobiano para la función de error
     MatrixXd jacobian(const vector<double>& x, const vector<double>& p) const
     {
         Vector2d p_point(p[0], p[1]);
@@ -88,6 +94,7 @@ public:
         return J;
     }
 
+    // Función de error
     MatrixXd error(const vector<double>& x, const vector<double>& p, const vector<double>& q) const
     {
         Vector2d p_point(p[0], p[1]);
@@ -97,6 +104,7 @@ public:
         return (R * p_point + t - q_point);
     }
 
+    // Solver para las matrices H y g
     tuple<MatrixXd, Vector3d> solver(const vector<double>& x, const vector<vector<double>>& P, 
                                      const vector<vector<double>>& Q, vector<pair<int, int>> correspondences)
     {
@@ -116,6 +124,7 @@ public:
         return make_tuple(H, g);
     }
 
+    // Función principal de ICP
     tuple<vector<vector<double>>, vector<double>> icp_function()
     {
         vector<double> x = X;
@@ -151,6 +160,7 @@ public:
         return make_tuple(P_new, Dx);
     }
 
+    // Métodos setter para P y Q
     void set_P(const vector<vector<double>>& new_P) {
         P = new_P;
     }
@@ -158,18 +168,17 @@ public:
     void set_Q(const vector<vector<double>>& new_Q) {
         Q = new_Q;
     }
-
     void set_X(const vector<double>& new_x)
     {
         X = new_x;
     }
 
 private:
-    vector<vector<double>> P;  
-    vector<vector<double>> Q;  
-    vector<double> X;          
-    int iter;                  
-    double tol;                
+    vector<vector<double>> P;  // Puntos actuales
+    vector<vector<double>> Q;  // Puntos previos
+    vector<double> X;          // Transformación inicial [x, y, theta]
+    int iter;                  // Iteraciones máximas
+    double tol;                // Tolerancia para la convergencia
 };
- 
+
 #endif  // ICP_HPP
