@@ -166,5 +166,5 @@ private:
     int iter;                  
     double tol;                
 };
-
+ 
 #endif  // ICP_HPP
