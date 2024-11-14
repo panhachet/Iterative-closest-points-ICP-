@@ -1,0 +1,27 @@
+import os
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch_ros.actions import Node
+
+def generate_launch_description():
+    return LaunchDescription([
+        Node(
+            package='icp1_ros',
+            executable='icp', 
+            name='icp',
+            output='screen',
+            parameters=[{'use_sim_time': True}]  
+        ),
+
+
+        # Node(
+        #     package='icp1_ros',
+        #     executable='map', 
+        #     name='map',
+        #     output='screen',
+        #     parameters=[{'use_sim_time': True}] 
+        # ),
+    ])
