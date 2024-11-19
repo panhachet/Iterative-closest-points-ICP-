@@ -13,7 +13,7 @@
 
 double round_to_two_decimal_places(double value)
 {
-    return std::round(value * 100.0) / 100.0;
+    return std::round(value * 1000.0) / 1000.0;
 }
 
 void round_store_Q(vector<vector<double>>& store_Q) {
@@ -27,11 +27,7 @@ void round_store_Q(vector<vector<double>>& store_Q) {
 class ICPTransformNode : public rclcpp::Node
 {
 public:
-  ICPTransformNode()
-    : Node("icp_transform_node"),
-      icp_(std::vector<std::vector<double>>{}, std::vector<std::vector<double>>{}, {0.0, 0.0, 0.0}, 10, 1e-3),
-      last_imu_yaw_(0.0),
-      current_imu_yaw_(0.0)
+  ICPTransformNode() : Node("icp_transform_node")
   {
     rclcpp::QoS qos_profile(rclcpp::KeepLast(100));
     qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
@@ -76,11 +72,11 @@ void imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
     tf2::Matrix3x3(q).getRPY(roll, pitch, X[2]);
     geometry_msgs::msg::TransformStamped transformStamped;
     transformStamped.header.stamp = msg->header.stamp;
-    transformStamped.header.frame_id = "base_scan"; 
-    transformStamped.child_frame_id = "odom";  
+    transformStamped.header.frame_id = "map"; 
+    transformStamped.child_frame_id = "base_link";  
 
-    transformStamped.transform.translation.x = X[0];
-    transformStamped.transform.translation.y = X[1];
+    transformStamped.transform.translation.x = X[0]+1.9999419575795798; //+0.5000009939137818*sin(X[2]);
+    transformStamped.transform.translation.y = X[1]+0.5000009939137818; //-1.9999419575795798*sin(X[2]);
     transformStamped.transform.translation.z = 0.0;
 
     transformStamped.transform.rotation.x = qx;
@@ -93,6 +89,8 @@ void imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
     }
   void scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
   {
+    if(scan_flag == 0)
+    {
     std::vector<double> data_x, data_y;
     for (size_t i = 0; i < msg->ranges.size(); ++i) {
       float range = msg->ranges[i];
@@ -102,8 +100,6 @@ void imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
       float angle = msg->angle_min + i * msg->angle_increment;
       float x_ = range * cos(angle);
       float y_ = range * sin(angle);
-      diff_x = X[0] - diff_x;
-      diff_y = X[1] - diff_y;
       float x1 = cos(X[2]) * x_ - sin(X[2]) * y_;
       float y1 = sin(X[2]) * x_ + cos(X[2]) * y_;
 
@@ -112,27 +108,30 @@ void imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
     }
 
     if (lidar_data_prev_.empty()) {
-      lidar_data_prev_ = icp_.combine_data(data_x, data_y);
+      lidar_data_prev_ = icp::combine_data(data_x, data_y);
       store_data = lidar_data_prev_;
+      scan_flag = 0;
     } else {
-        std::vector<std::vector<double>> current_data = icp_.combine_data(data_x, data_y);
-        icp_.set_P(current_data);
-        icp_.set_Q(store_data);
-        // auto [after_icp, dx, success] = icp_.icp_function();
-       std::vector<std::vector<double>> after_icp = current_data;
-        //if (success)
-        //{
+        std::vector<std::vector<double>> current_data = icp::combine_data(data_x, data_y);
+        icp icp(store_data, current_data, {X[0], X[1], X[2]}, 100, 1e-3);
+        auto [after_icp, dx, success] = icp.icp_function();
+        if (success)
+        {
             store_data.insert(store_data.end(), after_icp.begin(), after_icp.end());
             round_store_Q(store_data);
             sort(store_data.begin(), store_data.end());
             store_data.erase(unique(store_data.begin(), store_data.end()), store_data.end());
             cout << store_data.size() << endl;
-            
-            icp_.set_X(X);
-            // publish_scan1(msg, store_data);
             update_map(store_data);
-        //}
+            scan_flag = 0;
+        }
+        else
+        {
+          scan_flag = 1;
+        }
+        cout << "Flag:"<<scan_flag <<  endl;
         
+    }
     }
  
   }
@@ -209,6 +208,7 @@ void publish_scan1(const sensor_msgs::msg::LaserScan::SharedPtr& laser_msg,
   double current_imu_yaw_;
   bool fin = false;
   float diff_x, diff_y;
+  int scan_flag = 0;
   rclcpp::TimerBase::SharedPtr timer_;
 };
 

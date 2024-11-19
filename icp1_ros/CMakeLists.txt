@@ -14,6 +14,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(PCL REQUIRED)
 find_package(orocos_kdl REQUIRED)
 
 include_directories(include/icp1_ros)
@@ -33,18 +34,23 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-add_executable(icp src/icp_node.cpp src/icp.cpp) 
-ament_target_dependencies(icp rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros )  
+# add_executable(icp src/icp_node.cpp src/icp.cpp) 
+# ament_target_dependencies(icp rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros )  
 
 add_executable(icp1 src/icp_node1.cpp src/icp.cpp) 
 ament_target_dependencies(icp1 rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros )  
 
+
 add_executable(map src/map_publisher.cpp)
 ament_target_dependencies(map rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros orocos_kdl
 )
-target_link_libraries(icp pthread)
+
+# add_executable(icp3 src/icp_node3.cpp src/icp.cpp) 
+# ament_target_dependencies(icp3 rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros )  
+
+
+# target_link_libraries(icp pthread)
 install(TARGETS
-  icp
   map
   icp1
   DESTINATION lib/${PROJECT_NAME}
