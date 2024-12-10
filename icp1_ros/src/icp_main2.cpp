@@ -17,7 +17,7 @@ using namespace std;
 
 double round_to_two_decimal_places(double value)
 {
-    return std::round(value * 1000.0) / 1000.0;
+    return std::round(value * 100.0) / 100.0;
 }
 
 void round_store_Q(vector<vector<double>>& store_Q) {
@@ -44,40 +44,34 @@ class icp_node : public rclcpp::Node
             std::bind(&icp_node::odom_callback, this, std::placeholders::_1)
         );
 
-        new_laser_pub = this->create_publisher<visualization_msgs::msg::Marker>("new_scan", 10);
-        timer = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&icp_node::timer_callback, this));
+        new_laser_pub = this->create_publisher<sensor_msgs::msg::LaserScan>("new_scan", 10);
     }
 
     private:
 
         void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
         {
+            if(first_move)
+            {
+                prev_robot_pose[0]  = msg->pose.pose.position.x;
+                prev_robot_pose[1] = msg->pose.pose.position.y;
+                auto q = msg->pose.pose.orientation;
+                prev_robot_pose[2]  = std::atan2(2.0*(q.w*q.z + q.x*q.y), 1.0 - 2.0*(q.y*q.y  + q.z*q.z));
+                first_move = false;
+            }
             robot_pose[0]  = msg->pose.pose.position.x;
             robot_pose[1] = msg->pose.pose.position.y;
             auto q = msg->pose.pose.orientation;
             robot_pose[2]  = std::atan2(2.0*(q.w*q.z + q.x*q.y), 1.0 - 2.0*(q.y*q.y  + q.z*q.z));
-            dx = robot_pose[0] - prev_robot_pose[0];
-            dy = robot_pose[1] - prev_robot_pose[1];
-            dtheta = robot_pose[2] - prev_robot_pose[2];
-            double distance_moved = std::sqrt(dx * dx + dy * dy);
-            double angle_moved = std::fabs(dtheta);
-            if (distance_moved > 0.005 || angle_moved > 0.01)
-            {
-                robot_move = true;
-            }
-            else
-            {
-                robot_move = false;
-            }
-            prev_robot_pose = robot_pose;
 
         }
 
         void laser_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
         {
+            int downsample_factor = 10; 
             obj_x.clear();
             obj_y.clear();
-            for(size_t i =0; i<msg->ranges.size(); i++)
+            for(size_t i =0; i<msg->ranges.size(); i+=downsample_factor)
             {
                 float range = msg->ranges[i];
                 if(range < msg->range_min || range > msg->range_max)
@@ -95,14 +89,7 @@ class icp_node : public rclcpp::Node
             }
             obj =  icp_.combine_data(obj_x, obj_y);
             round_store_Q(obj);
-        }
 
-        void timer_callback()
-        {
-            if(!robot_move)
-            {
-                return;
-            }
             if(flag == 0)
             {
                 flag =  1;
@@ -117,52 +104,57 @@ class icp_node : public rclcpp::Node
                     P = obj;
                     icp_.set_P(P);
                     icp_.set_Q(Q);
+                    dx = robot_pose[0] - prev_robot_pose[0];
+                    dy = robot_pose[1] - prev_robot_pose[1];
+                    dtheta = robot_pose[2] - prev_robot_pose[2];
                     icp_.set_X({dx,dy,dtheta});
                     auto [aligned, dx1, conv] = icp_.icp_function();
                     cout << "conv" <<  conv << endl;
                     cout << Q.size() << endl;
+                    cout << dx << "\t" << dy << "\t" << dtheta << endl;
                     if (conv)
                     {
+                        prev_robot_pose = robot_pose;
                         Q.insert(Q.end(), aligned.begin(), aligned.end());
                         round_store_Q(Q);
                         sort(Q.begin(), Q.end());
                         Q.erase(unique(Q.begin(), Q.end()), Q.end());
-                        auto marker =  visualization_msgs::msg::Marker();
-                        marker.header.frame_id = "map";
-                        marker.header.stamp = this->get_clock()->now();
-                        marker.ns = "scan_points";
-                        marker.id = 0;
-                        marker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
-                        marker.action = visualization_msgs::msg::Marker::ADD;
-                        marker.scale.x = 0.05;  
-                        marker.scale.y = 0.05;
-                        marker.scale.z = 0.05;
-                        marker.color.a = 1.0;  
-                        marker.color.r = 0.0;
-                        marker.color.g = 1.0;
-                        marker.color.b = 0.0;
-                        
-                        for (const  auto &point : Q)
-                        {
-                            geometry_msgs::msg::Point p;
-                            p.x = point[0];
-                            p.y = point[1];
-                            p.z = 0.0;
-                            marker.points.push_back(p);
-                        }
-                        new_laser_pub->publish(marker);
                     }
+                    auto new_scan = sensor_msgs::msg::LaserScan();
+                        new_scan.header.frame_id = msg->header.frame_id;
+                        new_scan.header.stamp = this->get_clock()->now();
+                        new_scan.angle_min = msg->angle_min;
+                        new_scan.angle_max = msg->angle_max;
+                        new_scan.angle_increment = msg->angle_increment * downsample_factor;
+                        new_scan.time_increment = msg->time_increment * downsample_factor;
+                        new_scan.range_min = msg->range_min;
+                        new_scan.range_max = msg->range_max;
+                        new_scan.ranges.resize(Q.size(), new_scan.range_max);
+                        for (size_t i = 0; i < Q.size(); i += downsample_factor)
+                        {
+                            double x = Q[i][0];
+                            double y = Q[i][1];
+                            double range = std::sqrt(x * x + y * y);
+                            double angle = std::atan2(y, x);
+                            int index = (angle - new_scan.angle_min) / new_scan.angle_increment;
+                            if (index >= 0 && index < new_scan.ranges.size())
+                            {
+                                new_scan.ranges[index] = range;
+                            }
+                        }
+                        new_laser_pub->publish(new_scan);
                     flag = 0;
                 }
                 robot_move = false;
                 }
         }
 
+ 
+
         rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laser_sub;
         rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub;
         
-        rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr new_laser_pub;
-        rclcpp::TimerBase::SharedPtr timer;
+        rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr new_laser_pub;
         icp icp_;
 
         vector<double> robot_pose = {0.0, 0.0, 0.0};
@@ -174,6 +166,7 @@ class icp_node : public rclcpp::Node
         vector<double> obj_y;
         int flag = 0;
         bool robot_move = false;
+        bool first_move = true;
         double dx;
         double dy;
         double dtheta;

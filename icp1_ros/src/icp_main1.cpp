@@ -17,7 +17,7 @@ using namespace std;
 
 double round_to_two_decimal_places(double value)
 {
-    return std::round(value * 1000.0) / 1000.0;
+    return std::round(value * 100.0) / 100.0;
 }
 
 void round_store_Q(vector<vector<double>>& store_Q) {
@@ -52,24 +52,18 @@ class icp_node : public rclcpp::Node
 
         void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
         {
+            if(first_move)
+            {
+                prev_robot_pose[0]  = msg->pose.pose.position.x;
+                prev_robot_pose[1] = msg->pose.pose.position.y;
+                auto q = msg->pose.pose.orientation;
+                prev_robot_pose[2]  = std::atan2(2.0*(q.w*q.z + q.x*q.y), 1.0 - 2.0*(q.y*q.y  + q.z*q.z));
+                first_move = false;
+            }
             robot_pose[0]  = msg->pose.pose.position.x;
             robot_pose[1] = msg->pose.pose.position.y;
             auto q = msg->pose.pose.orientation;
             robot_pose[2]  = std::atan2(2.0*(q.w*q.z + q.x*q.y), 1.0 - 2.0*(q.y*q.y  + q.z*q.z));
-            dx = robot_pose[0] - prev_robot_pose[0];
-            dy = robot_pose[1] - prev_robot_pose[1];
-            dtheta = robot_pose[2] - prev_robot_pose[2];
-            double distance_moved = std::sqrt(dx * dx + dy * dy);
-            double angle_moved = std::fabs(dtheta);
-            if (distance_moved > 0.005 || angle_moved > 0.01)
-            {
-                robot_move = true;
-            }
-            else
-            {
-                robot_move = false;
-            }
-            prev_robot_pose = robot_pose;
 
         }
 
@@ -99,10 +93,6 @@ class icp_node : public rclcpp::Node
 
         void timer_callback()
         {
-            if(!robot_move)
-            {
-                return;
-            }
             if(flag == 0)
             {
                 flag =  1;
@@ -117,12 +107,17 @@ class icp_node : public rclcpp::Node
                     P = obj;
                     icp_.set_P(P);
                     icp_.set_Q(Q);
+                    dx = robot_pose[0] - prev_robot_pose[0];
+                    dy = robot_pose[1] - prev_robot_pose[1];
+                    dtheta = robot_pose[2] - prev_robot_pose[2];
                     icp_.set_X({dx,dy,dtheta});
                     auto [aligned, dx1, conv] = icp_.icp_function();
                     cout << "conv" <<  conv << endl;
                     cout << Q.size() << endl;
+                    cout << dx << "\t" << dy << "\t" << dtheta << endl;
                     if (conv)
                     {
+                        prev_robot_pose = robot_pose;
                         Q.insert(Q.end(), aligned.begin(), aligned.end());
                         round_store_Q(Q);
                         sort(Q.begin(), Q.end());
@@ -174,6 +169,7 @@ class icp_node : public rclcpp::Node
         vector<double> obj_y;
         int flag = 0;
         bool robot_move = false;
+        bool first_move = true;
         double dx;
         double dy;
         double dtheta;
