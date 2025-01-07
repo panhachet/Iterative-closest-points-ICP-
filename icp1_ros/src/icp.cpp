@@ -9,7 +9,14 @@ icp::icp(const vector<vector<double>>& P_data,
             int iteration, 
             double tolerance)
             : P(P_data), Q(Q_data), X(x_init), iter(iteration), tol(tolerance)
-            {}
+            {
+                cout << "===================ICP Slam====================" << endl;
+                cout << "Intergration project Master Mars"<< endl;
+                cout << "Implementation with ROS 2" << endl;
+                cout << "===============================================" << endl;
+
+
+            }
 
 vector<vector<double>> icp::combine_data(const vector<double>& data_x, const vector<double>& data_y)
 {
@@ -168,6 +175,7 @@ tuple<vector<vector<double>>, vector<double>, bool> icp::icp_function()
     vector<vector<double>> x_new = {X};
     vector<vector<double>> P_new;
     vector<double> Dx;
+    vector<vector<double>> P_rel;
     for (int i =0; i<iter; i++)
     {
         MatrixXd R = rotation(x[2]);
@@ -179,7 +187,7 @@ tuple<vector<vector<double>>, vector<double>, bool> icp::icp_function()
         for (int i = 0; i < 3; i++) {
             x[i] += dx(i);
         }
-        x[2] = atan2(sin(x[2]), cos(x[2])); 
+        x[2] = atan(sin(x[2])/cos(x[2])); 
         x_new.push_back(x);
         for (size_t i = 0; i < P.size(); i++)
         {
@@ -189,6 +197,14 @@ tuple<vector<vector<double>>, vector<double>, bool> icp::icp_function()
         P_new = P_prev;
         if(dx.norm() < tol)
         {
+            
+            cout << "================Convergence================" << endl;
+            cout << "Iteration:" << i << endl;
+            cout << "Error X\t" << dx[0] <<endl;
+            cout << "Error Y\t" << dx[1] <<endl;
+            cout << "Error Yaw\t" << dx[2] << endl;
+            cout << "====================end=====================" << endl;
+            
             return make_tuple(P_new, Dx, true);
             break;
         }

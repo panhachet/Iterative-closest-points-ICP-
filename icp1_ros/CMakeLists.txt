@@ -60,6 +60,7 @@ install(TARGETS
   icp1
   icp3
   icp4
+  icp5
   pc
   DESTINATION lib/${PROJECT_NAME}
 )

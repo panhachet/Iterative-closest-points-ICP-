@@ -81,7 +81,40 @@ class icp_node : public rclcpp::Node
                 obj_x.push_back(obx);
                 obj_y.push_back(oby);
             }
-            obj =  icp_.combine_data(obj_x, obj_y);
+            obj =  icp_.combine_data(obj_x, obj_y); 
+            vector<vector<double>> P; // For data points
+            vector<vector<double>> Q; // For obj points
+
+            // Matching logic for x or y
+            auto are_points_similar = [](const vector<double> &a, const vector<double> &b, double epsilon = 1e-6) {
+                return fabs(a[0] - b[0]) < epsilon || fabs(a[1] - b[1]) < epsilon;
+            };
+
+            for (const auto &point_data : data)
+            {
+                for (const auto &point_obj : obj)
+                {
+                    if (are_points_similar(point_data, point_obj))
+                    {
+                        P.push_back({point_data[0], point_data[1]});
+                        Q.push_back({point_obj[0], point_obj[1]});
+                        break; // Stop further comparisons for this `point_data`
+                    }
+                }
+            }
+
+            // Logging matches
+            cout << "Matched points:" << endl;
+            for (size_t i = 0; i < P.size(); ++i)
+            {
+                cout << "P: [" << P[i][0] << ", " << P[i][1] << "]"
+                    << " -> Q: [" << Q[i][0] << ", " << Q[i][1] << "]" << endl;
+            }
+            cout << "=====================" << endl;
+            cout << "object:" << obj.size() << endl;
+            cout << "data:" << data.size() <<  endl;
+            cout << "matches: " << P.size() << endl;
+            cout << "=====================" << endl;
             data.insert(data.end(), obj.begin(), obj.end());
             auto marker =  visualization_msgs::msg::Marker();
             marker.header.frame_id = "odom";

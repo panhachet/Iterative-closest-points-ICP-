@@ -64,7 +64,6 @@ class icp_node : public rclcpp::Node
             dyaw = curr_pos[2] - prev_pos[2];
             if  (dx >= 0.0001  || dy >= 0.0001  || dyaw >= 0.0001 )
             {
-            prev_pos = curr_pos;
             for(size_t i =0; i<msg->ranges.size(); i++)
             {
                 float range = msg->ranges[i];
@@ -72,42 +71,66 @@ class icp_node : public rclcpp::Node
                 {
                     continue;
                 }
-
                 float angle =  msg->angle_min + i * msg->angle_increment;
                 float x = range * cos(angle);
                 float y = range * sin(angle);
                 float obx = x * cos(curr_pos[2]) - y * sin(curr_pos[2]) + curr_pos[0];
-                float oby = x * sin(curr_pos[2]) + y * cos(curr_pos[2]) + curr_pos[1];
+                float oby = x * sin(curr_pos[2]) + y * cos(curr_pos[2])  + curr_pos[1];
                 obj_x.push_back(obx);
                 obj_y.push_back(oby);
             }
             obj =  icp_.combine_data(obj_x, obj_y);
-            data.insert(data.end(), obj.begin(), obj.end());
-            auto marker =  visualization_msgs::msg::Marker();
-            marker.header.frame_id = "odom";
-            marker.header.stamp = this->get_clock()->now();
-            marker.ns = "scan_points";
-            marker.id = 0;
-            marker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
-            marker.action = visualization_msgs::msg::Marker::ADD;
-            marker.scale.x = 0.05;  
-            marker.scale.y = 0.05;
-            marker.scale.z = 0.05;
-            marker.color.a = 1.0;  
-            marker.color.r = 0.0;
-            marker.color.g = 1.0;
-            marker.color.b = 0.0;
-            cout << data.size() << endl;
-            for (const  auto &point : data)
+            if (flag == 0)
             {
-                geometry_msgs::msg::Point p;
-                p.x = point[0];
-                p.y = point[1];
-                p.z = 0.0;
-                marker.points.push_back(p);
-            }
-            new_laser_pub->publish(marker);
-            
+                flag = 1;
+                if (Q.empty())
+                {
+                    Q = obj;
+                    icp_.set_Q(Q);
+                    data = Q;
+                    flag = 0;
+                }
+                else
+                {
+                    P = obj;
+                    icp_.set_P(P);
+                    icp_.set_X({dx, dy, dyaw});
+                    auto [aligned, dx1, conv] = icp_.icp_function();
+                    if (conv)
+                    {
+                        cout << conv << endl;
+                        cout << Q.size() << endl;
+                        data.insert(data.end(), aligned.begin(), aligned.end());
+                        Q = data;
+                        icp_.set_Q(Q);
+                        prev_pos = curr_pos;
+                    }
+                }
+                auto marker =  visualization_msgs::msg::Marker();
+                marker.header.frame_id = "odom";
+                marker.header.stamp = this->get_clock()->now();
+                marker.ns = "scan_points";
+                marker.id = 0;
+                marker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
+                marker.action = visualization_msgs::msg::Marker::ADD;
+                marker.scale.x = 0.05;  
+                marker.scale.y = 0.05;
+                marker.scale.z = 0.05;
+                marker.color.a = 1.0;  
+                marker.color.r = 0.0;
+                marker.color.g = 1.0;
+                marker.color.b = 0.0;
+                for (const  auto &point : data)
+                {
+                    geometry_msgs::msg::Point p;
+                    p.x = point[0];
+                    p.y = point[1];
+                    p.z = 0.0;
+                    marker.points.push_back(p);
+                }
+                new_laser_pub->publish(marker);
+                flag = 0;
+                }
             }
         }
 
@@ -122,7 +145,10 @@ class icp_node : public rclcpp::Node
     vector<double> obj_y;
     vector<vector<double>> obj;
     vector<vector<double>> data;
+    vector<vector<double>> Q;
+    vector<vector<double>> P;
     bool first_move = true;
+    int flag = 0;
     double dx;
     double dy;
     double dyaw;
