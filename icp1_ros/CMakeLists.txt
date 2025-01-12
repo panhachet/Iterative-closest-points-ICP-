@@ -22,7 +22,7 @@ include_directories(include/icp1_ros)
 # Eigen
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
-
+include_directories(/home/robotic/ICP_CPP/nanoflann/include)
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
@@ -37,17 +37,10 @@ endif()
 add_executable(map src/icp_map.cpp)
 ament_target_dependencies(map rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros visualization_msgs)
 
-add_executable(icp1 src/icp_main2.cpp src/icp.cpp) 
-ament_target_dependencies(icp1 rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros visualization_msgs)
-
-
-add_executable(icp3 src/icp_main3.cpp src/icp.cpp) 
-ament_target_dependencies(icp3  rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros visualization_msgs)
-
-add_executable(icp4 src/icp_main4.cpp src/icp.cpp) 
+add_executable(icp4 src/icp_main4.cpp src/icp.cpp src/KDTree.cpp) 
 ament_target_dependencies(icp4  rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros visualization_msgs)
 
-add_executable(icp5 src/icp_main5.cpp src/icp.cpp) 
+add_executable(icp5 src/icp_main5.cpp src/icp.cpp src/KDTree.cpp) 
 ament_target_dependencies(icp5  rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros visualization_msgs)
 
 
@@ -57,8 +50,6 @@ ament_target_dependencies(pc  rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_
 
 install(TARGETS
   map
-  icp1
-  icp3
   icp4
   icp5
   pc

@@ -34,9 +34,6 @@ private:
     }
 
     void laser_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
-        // Reset the map to unknown (-1)
-        //std::fill(map_msg.data.begin(), map_msg.data.end(), -1);
-
         for (size_t i = 0; i < msg->ranges.size(); ++i) {
             float range = msg->ranges[i];
             if (range < msg->range_min || range > msg->range_max) {
@@ -45,7 +42,6 @@ private:
 
         
             float angle = msg->angle_min + i * msg->angle_increment;
-
 
             float x_robot = range * cos(angle);
             float y_robot = range * sin(angle);

@@ -12,6 +12,7 @@
 #include <chrono> 
 
 #include <Eigen/Dense>
+#include "KDTree.hpp"
 
 using namespace Eigen;
 using namespace std;
@@ -39,6 +40,10 @@ class icp
             const vector<double>& data_y);
         vector<pair<int, int>> correspondence(const vector<vector<double>>& P, 
             const vector<vector<double>>& Q);
+        static vector<pair<int, int>> correspondence1(
+            const vector<vector<double>>& P,
+            const vector<vector<double>>& Q
+        );
         MatrixXd rotation(const float& theta) const;
         MatrixXd d_rotation(const float& theta) const;
         MatrixXd jacobian(const vector<double>& x, 

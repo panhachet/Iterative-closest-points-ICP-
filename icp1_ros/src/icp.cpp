@@ -2,6 +2,8 @@
 #include <unordered_map>
 #include <limits>
 #include <cmath>
+#include "KDTree.hpp"
+#include <nanoflann.hpp>
 
 icp::icp(const vector<vector<double>>& P_data, 
             const vector<vector<double>>& Q_data, 
@@ -28,77 +30,67 @@ vector<vector<double>> icp::combine_data(const vector<double>& data_x, const vec
     return data;
 }
 
-// vector<pair<int, int>> icp::correspondence(const vector<vector<double>>& P, const vector<vector<double>>& Q)
-// {
-//     int p_size = P.size();
-//     int q_size = Q.size();
-//     vector<pair<int, int>> correspondences;
-//     for (int i = 0; i<p_size; i++)
-//     {
-//         vector<double> p_point  = {P[i][0], P[i][1]};
-//         double min_dist = numeric_limits<double>::infinity();
-//         int chosen_idx = -1;
-//         for (int j = 0; j<q_size; j++)
-//         {
-//             double sum = 0;
-//             vector<double> q_point  = {Q[j][0], Q[j][1]};
-//             for (size_t k = 0; k<p_point.size(); k++)
-//             {
-//                 double diff = p_point[k] - q_point[k];
-//                 sum += diff * diff;
-//             }
-//             double dist = sqrt(sum);
-//             if (dist < min_dist)
-//             {
-//                 min_dist =  dist;
-//                 chosen_idx =  j;
-//             }
-//         }
-//         correspondences.push_back({i, chosen_idx});
-//     }
-//     return correspondences;
-// }
-
 vector<pair<int, int>> icp::correspondence(const vector<vector<double>>& P, const vector<vector<double>>& Q)
 {
     int p_size = P.size();
     int q_size = Q.size();
     vector<pair<int, int>> correspondences;
-
-    vector<double> Q_squared(q_size, 0);
-    for (int j = 0; j < q_size; j++) {
-        double sum = 0;
-        for (size_t k = 0; k < Q[j].size(); k++) {
-            sum += Q[j][k] * Q[j][k]; 
-        }
-        Q_squared[j] = sum;
-    }
-
-    for (int i = 0; i < p_size; i++) {
+    for (int i = 0; i<p_size; i++)
+    {
+        vector<double> p_point  = {P[i][0], P[i][1]};
         double min_dist = numeric_limits<double>::infinity();
         int chosen_idx = -1;
-        double p_squared = 0;
-        for (size_t k = 0; k < P[i].size(); k++) {
-            p_squared += P[i][k] * P[i][k]; 
-        }
-
-        for (int j = 0; j < q_size; j++) {
+        for (int j = 0; j<q_size; j++)
+        {
             double sum = 0;
-            for (size_t k = 0; k < P[i].size(); k++) {
-                double diff = P[i][k] - Q[j][k];
+            vector<double> q_point  = {Q[j][0], Q[j][1]};
+            for (size_t k = 0; k<p_point.size(); k++)
+            {
+                double diff = p_point[k] - q_point[k];
                 sum += diff * diff;
             }
-            if (sum < min_dist) {
-                min_dist = sum;
-                chosen_idx = j;
+            double dist = sqrt(sum);
+            if (dist < min_dist)
+            {
+                min_dist =  dist;
+                chosen_idx =  j;
             }
         }
-
         correspondences.push_back({i, chosen_idx});
+    }
+    return correspondences;
+}
+
+
+vector<pair<int, int>> icp::correspondence1(
+    const vector<vector<double>>& P,
+    const vector<vector<double>>& Q
+) {
+    int p_size = P.size();
+    vector<pair<int, int>> correspondences;
+    PointCloudAdaptor2D adaptor(Q);
+    using KDTree = nanoflann::KDTreeSingleIndexAdaptor<
+        nanoflann::L2_Simple_Adaptor<double, PointCloudAdaptor2D>,
+        PointCloudAdaptor2D,
+        2 
+    >;
+
+    KDTree kdtree(2, adaptor, nanoflann::KDTreeSingleIndexAdaptorParams(10));
+    kdtree.buildIndex();
+    for (int i = 0; i < p_size; ++i) {
+        size_t closest_idx;
+        double min_dist_sq;
+        nanoflann::KNNResultSet<double> resultSet(1); // Nearest neighbor
+        resultSet.init(&closest_idx, &min_dist_sq);
+
+        kdtree.findNeighbors(resultSet, P[i].data(), nanoflann::SearchParameters(10));
+
+        correspondences.push_back({i, static_cast<int>(closest_idx)});
     }
 
     return correspondences;
 }
+
 
 
 
@@ -174,13 +166,14 @@ tuple<vector<vector<double>>, vector<double>, bool> icp::icp_function()
     vector<vector<double>> P_prev = P;
     vector<vector<double>> x_new = {X};
     vector<vector<double>> P_new;
+    vector<vector<double>> P_align;
     vector<double> Dx;
     vector<vector<double>> P_rel;
     for (int i =0; i<iter; i++)
     {
         MatrixXd R = rotation(x[2]);
         Vector2d t(x[0], x[1]);
-        vector<pair<int, int>> corr = correspondence(P_prev,Q);
+        vector<pair<int, int>> corr = correspondence1(P_prev,Q);
         auto [H, g] = solver(x, P, Q, corr);
         Vector3d dx = - H.inverse() * g;
         Dx.push_back(dx.norm());
@@ -191,7 +184,7 @@ tuple<vector<vector<double>>, vector<double>, bool> icp::icp_function()
         x_new.push_back(x);
         for (size_t i = 0; i < P.size(); i++)
         {
-            Vector2d rotated_point = R * Vector2d(P[i][0], P[i][1]) + t;
+            Vector2d rotated_point = R* Vector2d(P[i][0], P[i][1]) + t;
             P_prev[i] = {rotated_point(0), rotated_point(1)};
         }
         P_new = P_prev;
@@ -204,11 +197,10 @@ tuple<vector<vector<double>>, vector<double>, bool> icp::icp_function()
             cout << "Error Y\t" << dx[1] <<endl;
             cout << "Error Yaw\t" << dx[2] << endl;
             cout << "====================end=====================" << endl;
-            
+
             return make_tuple(P_new, Dx, true);
             break;
         }
     }    
     return make_tuple(P_new, Dx, false);
 }
-
