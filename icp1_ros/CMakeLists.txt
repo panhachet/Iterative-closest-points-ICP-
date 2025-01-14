@@ -34,25 +34,20 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-add_executable(map src/icp_map.cpp)
+add_executable(map src/map.cpp)
 ament_target_dependencies(map rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros visualization_msgs)
 
-add_executable(icp4 src/icp_main4.cpp src/icp.cpp src/KDTree.cpp) 
-ament_target_dependencies(icp4  rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros visualization_msgs)
+add_executable(wo_icp src/without_icp.cpp src/icp.cpp src/KDTree.cpp) 
+ament_target_dependencies(wo_icp  rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros visualization_msgs)
 
-add_executable(icp5 src/icp_main5.cpp src/icp.cpp src/KDTree.cpp) 
-ament_target_dependencies(icp5  rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros visualization_msgs)
-
-
-add_executable(pc src/point_cloud.cpp) 
-ament_target_dependencies(pc  rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros visualization_msgs laser_geometry)
+add_executable(icp src/with_icp.cpp src/icp.cpp src/KDTree.cpp) 
+ament_target_dependencies(icp  rclcpp sensor_msgs nav_msgs geometry_msgs tf2 tf2_ros visualization_msgs)
 
 
 install(TARGETS
   map
-  icp4
-  icp5
-  pc
+  wo_icp
+  icp
   DESTINATION lib/${PROJECT_NAME}
 )
 

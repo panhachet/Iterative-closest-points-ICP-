@@ -17,11 +17,11 @@ def generate_launch_description():
         ),
 
 
-        # Node(
-        #     package='icp1_ros',
-        #     executable='map', 
-        #     name='map',
-        #     output='screen',
-        #     parameters=[{'use_sim_time': True}] 
-        # ),
+        Node(
+            package='icp1_ros',
+            executable='map', 
+            name='map',
+            output='screen',
+            parameters=[{'use_sim_time': True}] 
+        ),
     ])

@@ -4,6 +4,7 @@
 #include "visualization_msgs/msg/marker.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
+#include "sensor_msgs/msg/imu.hpp"
 
 #include "iostream"
 #include "vector"
@@ -11,7 +12,6 @@
 #include "KDTree.hpp" 
 
 using namespace  std;
-
 
 double euclidean_distance(const std::vector<double>& p, const std::vector<double>& q) {
     double sum = 0.0;
@@ -28,8 +28,8 @@ double round_to_two_decimal_places(double value)
 
 void round_store_Q(vector<vector<double>>& store_Q) {
     for (auto& point : store_Q) {
-        point[0] = round_to_two_decimal_places(point[0]);  // Round x
-        point[1] = round_to_two_decimal_places(point[1]);  // Round y
+        point[0] = round_to_two_decimal_places(point[0]);  
+        point[1] = round_to_two_decimal_places(point[1]);  
     }
 }
 
@@ -54,6 +54,11 @@ class icp_node : public rclcpp::Node
             std::bind(&icp_node::odom_callback, this, std::placeholders::_1)
         );
 
+        imu_sub = this->create_subscription<sensor_msgs::msg::Imu>(
+            "imu", qos,
+            std::bind(&icp_node::imu_callback, this, std::placeholders::_1)
+        );
+
         pcq_pub = this->create_publisher<sensor_msgs::msg::PointCloud2>(
             "map_point", 10
         );
@@ -61,9 +66,22 @@ class icp_node : public rclcpp::Node
         pcp_pub = this->create_publisher<sensor_msgs::msg::PointCloud2>(
             "p_point", 10
         );
+
+        icp_timer = this->create_wall_timer(
+            std::chrono::milliseconds(100), 
+            std::bind(&icp_node::icp_callback, this)
+        );
+
+
     }
 
     private:
+
+        void imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
+        {
+            auto q = msg->orientation;
+            yaw = atan2(2.0*(q.w*q.z + q.x*q.y),(1.0 - 2.0*(q.y*q.y  + q.z*q.z)));
+        }
 
         void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
         {
@@ -72,7 +90,7 @@ class icp_node : public rclcpp::Node
                 prev_pos[0] = msg->pose.pose.position.x;
                 prev_pos[1] = msg->pose.pose.position.y;
                 auto q = msg->pose.pose.orientation;
-                prev_pos[2] =  atan2(2.0*(q.w*q.z + q.x*q.y),(1.0 - 2.0*(q.y*q.y  + q.z*q.z)));
+                prev_pos[2] =  yaw;
                 first_move  = false;
             }
             else
@@ -80,14 +98,14 @@ class icp_node : public rclcpp::Node
                 curr_pos[0] = msg->pose.pose.position.x;
                 curr_pos[1] = msg->pose.pose.position.y;
                 auto q = msg->pose.pose.orientation;
-                curr_pos[2] = atan2(2.0*(q.w*q.z + q.x*q.y),(1.0 - 2.0*(q.y*q.y  + q.z*q.z)));
+                curr_pos[2] = yaw;
             }
         }
 
         void publish_p_pointcloud(const vector<vector<double>> &P)
         {
             auto pc_msg = sensor_msgs::msg::PointCloud2();
-            pc_msg.header.frame_id = "odom";
+            pc_msg.header.frame_id = "map";
             pc_msg.header.stamp = this->get_clock()->now();
 
             pc_msg.height = 1;
@@ -118,7 +136,7 @@ class icp_node : public rclcpp::Node
         void publish_q_pointcloud(const vector<vector<double>> &Q)
         {
             auto qpc_msg = sensor_msgs::msg::PointCloud2();
-            qpc_msg.header.frame_id = "odom";
+            qpc_msg.header.frame_id = "map";
             qpc_msg.header.stamp = this->get_clock()->now();
 
             qpc_msg.height = 1;
@@ -150,17 +168,13 @@ class icp_node : public rclcpp::Node
         {
             obj_x.clear();
             obj_y.clear();
-            dx = curr_pos[0] - prev_pos[0];
-            dy = curr_pos[1] - prev_pos[1];
-            dyaw = curr_pos[2] - prev_pos[2];
-            if  (dx <= 0.0001  || dy <= 0.0001  || dyaw <= 0.0001 )
-            {
+
             for(size_t i =0; i<msg->ranges.size(); i++)
             {
                 float range = msg->ranges[i];
                 if(range < msg->range_min || range > msg->range_max)
                 {
-                    continue;
+                     continue;
                 }
                 float angle =  msg->angle_min + i * msg->angle_increment;
                 float x = range * cos(angle);
@@ -171,70 +185,75 @@ class icp_node : public rclcpp::Node
                 obj_y.push_back(oby);
             }
             obj =  icp_.combine_data(obj_x, obj_y);
-            if (flag == 0)
+            if (flag==0)
             {
-                flag = 1;
-                if (Q.empty())
+                if(Q.empty())
                 {
-                    Q = obj;
-                    icp_.set_Q(Q);
-                    data = Q;
+                    data = obj;
+                    Q = data; 
                     flag = 0;
                 }
                 else
                 {
                     P = obj;
-                    icp_.set_P(P);
-                    icp_.set_X({dx, dy, dyaw});
-                    
                     closest_points.clear();
-                    auto closest_points = find_closest_points_kdtree_2d(data, P);
+                    closest_points = find_closest_points_kdtree_2d(data, P);
                     round_store_Q(closest_points);
                     sort(closest_points.begin(), closest_points.end());
                     closest_points.erase(unique(closest_points.begin(), closest_points.end()), closest_points.end());
-                    int P_size = P.size();
-                    int C_size = closest_points.size();
-                    cout << "================" << endl;
-                    cout << P.size() << endl;
-                    cout << closest_points.size() << endl;
-                    cout << "================" << endl;
+                    P_size = P.size();
+                    C_size = closest_points.size();
+                    // cout << "================" << endl;
+                    // cout << P.size() << endl;
+                    // cout << closest_points.size() << endl;
+                    // cout << "================" << endl;
+                    publish_q_pointcloud(Q);
+                    publish_p_pointcloud(closest_points);
                     data.insert(data.end(), P.begin(), P.end());
                     round_store_Q(data);
                     sort(data.begin(), data.end());
                     data.erase(unique(data.begin(), data.end()), data.end());
-                    
-                    icp_.set_Q(Q);
-                    if (P_size - C_size <=2)
-                    {
-                        icp_.set_Q(closest_points);
-                        icp_.set_P(P);
-                        icp_.set_X({dx, dy, dyaw});
-                        auto [aligned, dx1, conv] = icp_.icp_function();
-                        cout << "ture" << endl;
-                        publish_p_pointcloud(closest_points);
-                        Q.insert(Q.end(), aligned.begin(), aligned.end());
-                        round_store_Q(Q);
-                        sort(Q.begin(), Q.end());
-                        Q.erase(unique(Q.begin(), Q.end()), Q.end());
-                        publish_q_pointcloud(Q);
-                    }
                     prev_pos = curr_pos;
-                    
-                }
-                //publish_q_pointcloud(data);
-                
-               
-
-                
-                flag = 0;
+                    flag = 0;
                 }
             }
+
         }
+
+    void icp_callback()
+    {
+        dx = curr_pos[0] - prev_pos[0];
+        dy = curr_pos[1] - prev_pos[1];
+        dyaw = curr_pos[2] - prev_pos[2];
+        // cout << "================" << endl;
+        // cout << "dx" << dx << "\t" << dy << "\t" << dyaw << endl;
+        // cout << "================" << endl;
+        if  (dx <= 0.000001  && dy <= 0.000001  && dyaw <= 0.000001 )
+        {
+                if (P_size - C_size <= 2)
+                {
+                    publish_p_pointcloud(closest_points);
+                    icp_.set_Q(closest_points);
+                    icp_.set_P(P);
+                    icp_.set_X({dx, dy, dyaw});
+                    auto [aligned, dx1, conv] = icp_.icp_function();
+
+                    Q.insert(Q.end(), aligned.begin(), aligned.end());
+                    round_store_Q(Q);
+                    sort(Q.begin(), Q.end());
+                    Q.erase(unique(Q.begin(), Q.end()), Q.end());
+                    publish_q_pointcloud(Q);
+                }  
+            
+        }
+    }
 
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laser_sub;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub;
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcq_pub;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcp_pub;
+    rclcpp::TimerBase::SharedPtr icp_timer;
     icp icp_;
 
     vector<double> prev_pos = {0.0, 0.0, 0.0};
@@ -248,9 +267,14 @@ class icp_node : public rclcpp::Node
     vector<vector<double>> closest_points;
     bool first_move = true;
     int flag = 0;
+    int icp_flag = 0;
     double dx;
     double dy;
     double dyaw;
+    double yaw = 0.0;
+
+    int P_size;
+    int C_size;
 
 };
 
