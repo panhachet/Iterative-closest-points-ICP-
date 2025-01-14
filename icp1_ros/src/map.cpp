@@ -65,8 +65,6 @@ class map_node : public rclcpp::Node
 
             int rmx = static_cast<int>((robot_pose[0] - origin_x) / map_resolution);
             int rmy = static_cast<int>((robot_pose[1] - origin_y) / map_resolution);
-
-            std::cout << mx << my << std::endl;
             bresenham(rmx, rmy, mx, my);
 
             if (mx >= 0 && mx < map_width && my >= 0 && my < map_height)

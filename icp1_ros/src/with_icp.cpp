@@ -39,7 +39,7 @@ class icp_node : public rclcpp::Node
     public:
     icp_node(): Node("icp_node"),
     icp_(vector<vector<double>>{}, vector<vector<double>>{},
-    {0.0, 0.0, 0.0}, 1000, 1e-6)
+    {0.0, 0.0, 0.0}, 1000, 1e-10)
     {
         rclcpp::QoS qos(rclcpp::KeepLast(100));
         qos.reliability(rclcpp::ReliabilityPolicy::BestEffort);
@@ -228,21 +228,26 @@ class icp_node : public rclcpp::Node
         // cout << "================" << endl;
         if  (dx <= 0.000001  && dy <= 0.000001  && dyaw <= 0.000001 )
         {
-                if (P_size - C_size <= 2)
+                if (P_size - C_size <= 0)
                 {
                     publish_p_pointcloud(closest_points);
                     icp_.set_Q(closest_points);
                     icp_.set_P(P);
                     icp_.set_X({dx, dy, dyaw});
                     auto [aligned, dx1, conv] = icp_.icp_function();
-
-                    Q.insert(Q.end(), aligned.begin(), aligned.end());
-                    round_store_Q(Q);
-                    sort(Q.begin(), Q.end());
-                    Q.erase(unique(Q.begin(), Q.end()), Q.end());
-                    publish_q_pointcloud(Q);
+                    if (conv)
+                    {
+                        Q.insert(Q.end(), aligned.begin(), aligned.end());
+                        round_store_Q(Q);
+                        sort(Q.begin(), Q.end());
+                        Q.erase(unique(Q.begin(), Q.end()), Q.end());
+                        publish_q_pointcloud(Q);
+                    }
+                }
+                else
+                {
+                    cout << "ok" << endl;
                 }  
-            
         }
     }
 

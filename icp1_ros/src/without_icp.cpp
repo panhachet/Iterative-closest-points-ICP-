@@ -230,21 +230,14 @@ class icp_node : public rclcpp::Node
         // cout << "================" << endl;
         if  (dx <= 0.000001  && dy <= 0.000001  && dyaw <= 0.000001 )
         {
-                if (P_size - C_size <= 2)
-                {
-                    publish_p_pointcloud(closest_points);
-                    icp_.set_Q(closest_points);
-                    icp_.set_P(P);
-                    icp_.set_X({dx, dy, dyaw});
-                    auto [aligned, dx1, conv] = icp_.icp_function();
 
-                    Q.insert(Q.end(), aligned.begin(), aligned.end());
-                    round_store_Q(Q);
-                    sort(Q.begin(), Q.end());
-                    Q.erase(unique(Q.begin(), Q.end()), Q.end());
-                    publish_q_pointcloud(Q);
-                }  
-            
+            publish_p_pointcloud(P);
+            Q.insert(Q.end(), P.begin(), P.end());
+            round_store_Q(Q);
+            sort(Q.begin(), Q.end());
+            Q.erase(unique(Q.begin(), Q.end()), Q.end());
+            publish_q_pointcloud(Q);
+
         }
     }
 
