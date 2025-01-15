@@ -42,3 +42,4 @@ make
 
 - https://github.com/lava/matplotlib-cpp
 - https://github.com/niosus/notebooks/blob/master/icp.ipynb
+- https://github.com/jlblancoc/nanoflann
